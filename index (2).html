@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLE Project Tracking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-card: #ffffff;
+      --bg-hover: #f1f5f9;
+      --bg-input: #f8fafc;
+      --accent-blue: #2563eb;
+      --accent-green: #059669;
+      --accent-yellow: #d97706;
+      --accent-red: #dc2626;
+      --accent-purple: #7c3aed;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+    
+    /* Login Screen */
+    .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #1e3a5f, #2563eb); }
+    .login-card { background: white; padding: 48px; border-radius: 16px; text-align: center; box-shadow: var(--shadow-lg); max-width: 400px; width: 90%; }
+    .login-logo { font-size: 48px; margin-bottom: 16px; }
+    .login-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+    .login-subtitle { color: var(--text-secondary); margin-bottom: 32px; }
+    .login-btn { background: var(--accent-blue); color: white; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: all 0.15s; }
+    .login-btn:hover { background: #1d4ed8; transform: translateY(-1px); }
+    .login-error { color: var(--accent-red); margin-top: 16px; font-size: 14px; }
+    
+    /* App Container */
+    .app-container { display: none; min-height: 100vh; }
+    .app-container.active { display: flex; }
+    
+    /* Sidebar */
+    .sidebar { width: 250px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 12px; position: fixed; height: 100vh; box-shadow: var(--shadow); overflow-y: auto; }
+    .logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 24px; }
+    .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; }
+    .logo-text { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+    .logo-text span { color: var(--accent-blue); }
+    .nav-section { margin-bottom: 20px; }
+    .nav-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 12px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: var(--text-secondary); font-weight: 500; font-size: 14px; transition: all 0.15s; }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: #eff6ff; color: var(--accent-blue); font-weight: 600; }
+    .nav-badge { margin-left: auto; background: var(--accent-blue); color: white; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+    .user-info { margin-top: auto; padding: 12px; border-top: 1px solid var(--border-color); margin-top: 20px; }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .user-email { font-size: 11px; color: var(--text-secondary); }
+    .logout-btn { margin-top: 8px; font-size: 12px; color: var(--accent-red); cursor: pointer; }
+    .logout-btn:hover { text-decoration: underline; }
+
+    /* Main */
+    .main-content { flex: 1; margin-left: 250px; padding: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+    .header p { color: var(--text-secondary); font-size: 14px; }
+    .header-actions { display: flex; gap: 10px; }
+    
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+    .btn-primary { background: var(--accent-blue); color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2); }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: white; color: var(--text-primary); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { background: var(--bg-hover); }
+
+    /* Pages */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+    .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; font-size: 18px; }
+    .stat-icon.blue { background: #dbeafe; }
+    .stat-icon.green { background: #d1fae5; }
+    .stat-icon.yellow { background: #fef3c7; }
+    .stat-icon.purple { background: #ede9fe; }
+    .stat-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+
+    /* Table */
+    .table-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+    .table-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-primary); }
+    .table-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .search-box { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; width: 220px; }
+    .search-box input { background: none; border: none; color: var(--text-primary); font-size: 14px; width: 100%; outline: none; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); background: var(--bg-primary); border-bottom: 1px solid var(--border-color); }
+    td { padding: 14px 20px; font-size: 14px; border-bottom: 1px solid var(--border-color); }
+    tr:hover td { background: #f8fafc; }
+    tr { cursor: pointer; }
+    .est-name { font-weight: 600; color: var(--text-primary); }
+    .est-loc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .customer-cell { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: white; }
+    .status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .status.draft { background: #f1f5f9; color: #64748b; }
+    .status.submitted { background: #dbeafe; color: #1d4ed8; }
+    .status.won { background: #d1fae5; color: #047857; }
+    .status.lost { background: #fee2e2; color: #b91c1c; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .amount { font-weight: 600; color: var(--text-primary); }
+    .action-btn { width: 32px; height: 32px; border-radius: 6px; background: white; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 14px; }
+    .action-btn:hover { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+
+    /* Forms */
+    .form-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; max-width: 700px; box-shadow: var(--shadow); }
+    .form-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+    .form-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .required { color: var(--accent-red); }
+    .form-input, .form-select, .form-textarea { width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: inherit; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 16px; }
+    .back-link:hover { color: var(--accent-blue); }
+
+    /* Detail */
+    .detail-header { margin-bottom: 24px; }
+    .detail-title { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+    .detail-meta { display: flex; gap: 20px; color: var(--text-secondary); font-size: 13px; }
+    .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    .detail-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+    .detail-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; color: var(--text-primary); }
+    .summary-card { background: linear-gradient(135deg, #eff6ff, #f5f3ff); border-color: #c7d2fe; }
+    .summary-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+    .summary-row:last-child { border: none; }
+    .summary-row.total { font-size: 18px; font-weight: 700; padding-top: 14px; margin-top: 8px; border-top: 2px solid var(--accent-blue); color: var(--text-primary); }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .info-item { padding: 12px; background: var(--bg-primary); border-radius: 8px; }
+    .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .info-value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 450px; box-shadow: var(--shadow-lg); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .modal-close { width: 28px; height: 28px; border-radius: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; font-size: 14px; }
+    .modal-close:hover { background: #fee2e2; color: var(--accent-red); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; right: 20px; background: white; border: 1px solid var(--accent-green); border-radius: 10px; padding: 14px 20px; display: flex; align-items: center; gap: 10px; z-index: 2000; box-shadow: var(--shadow-lg); transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+    .toast.active { transform: translateY(0); opacity: 1; }
+    .toast-icon { color: var(--accent-green); font-size: 18px; }
+
+    /* Loading */
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border-color); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .detail-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0; } .form-grid { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">⚡</div>
+      <div class="login-title">NLE Project Tracking</div>
+      <div class="login-subtitle">Sign in with your Microsoft account to continue</div>
+      <button class="login-btn" onclick="signIn()">
+        <svg width="20" height="20" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
+        Sign in with Microsoft
+      </button>
+      <div id="loginError" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- App Container -->
+  <div id="appContainer" class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">Next<span>Level</span></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">Main</div>
+        <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
+        <div class="nav-item" data-page="estimates">📋 Estimates <span class="nav-badge" id="estCount">0</span></div>
+        <div class="nav-item" data-page="customers">👥 Customers</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">Settings</div>
+        <div class="nav-item" data-page="phases">📦 Phases</div>
+      </div>
+      <div class="user-info">
+        <div class="user-name" id="userName">Loading...</div>
+        <div class="user-email" id="userEmail"></div>
+        <div class="logout-btn" onclick="signOut()">Sign out</div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="header">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Welcome back! Here's your estimate pipeline.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="exportAll()">📤 Export</button>
+            <button class="btn btn-primary" onclick="goTo('new-estimate')">+ New Estimate</button>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon blue">📊</div><div class="stat-label">Total Pipeline</div><div class="stat-value" id="s-pipeline">$0</div></div>
+          <div class="stat-card"><div class="stat-icon green">✓</div><div class="stat-label">Won</div><div class="stat-value" id="s-won">$0</div></div>
+          <div class="stat-card"><div class="stat-icon yellow">⏳</div><div class="stat-label">Pending</div><div class="stat-value" id="s-pending">$0</div></div>
+          <div class="stat-card"><div class="stat-icon purple">📈</div><div class="stat-label">Win Rate</div><div class="stat-value" id="s-rate">0%</div></div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">Recent Estimates</div>
+            <div class="search-box"><span>🔍</span><input type="text" placeholder="Search..." id="dashSearch" oninput="renderDashboard()"></div>
+          </div>
+          <table>
+            <thead><tr><th>Estimate</th><th>Customer</th><th>Status</th><th>Amount</th><th>Due</th><th></th></tr></thead>
+            <tbody id="dashTable"><tr><td colspan="6" class="loading"><div class="spinner"></div>Loading estimates...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ESTIMATES LIST -->
+      <div id="page-estimates" class="page">
+        <div class="header">
+          <div><h1>Estimates</h1><p>Manage all your estimates</p></div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="exportAll()">📤 Export All</button>
+            <button class="btn btn-primary" onclick="goTo('new-estimate')">+ New Estimate</button>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">All Estimates</div>
+            <div style="display:flex;gap:10px;">
+              <select class="form-select" style="width:140px;padding:8px;" id="statusFilter" onchange="renderEstimates()">
+                <option value="">All Status</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
+              </select>
+              <div class="search-box"><span>🔍</span><input type="text" placeholder="Search..." id="estSearch" oninput="renderEstimates()"></div>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>Estimate</th><th>Customer</th><th>Status</th><th>Amount</th><th>Due</th><th></th></tr></thead>
+            <tbody id="estTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NEW ESTIMATE -->
+      <div id="page-new-estimate" class="page">
+        <div class="back-link" onclick="goTo('estimates')">← Back to Estimates</div>
+        <div class="form-card">
+          <div class="form-title">Create New Estimate</div>
+          <div class="form-subtitle">Enter estimate details</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Estimate Name <span class="required">*</span></label>
+              <input type="text" class="form-input" id="f-name" placeholder="e.g., QuikTrip #1234">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Customer <span class="required">*</span></label>
+              <select class="form-select" id="f-customer"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input type="text" class="form-input" id="f-location" placeholder="123 Main St, Indianapolis">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bid Due Date</label>
+              <input type="date" class="form-input" id="f-due">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="f-status">
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">QB Estimate #</label>
+              <input type="text" class="form-input" id="f-qb" placeholder="After QB import">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Memo</label>
+              <textarea class="form-textarea" id="f-memo" placeholder="Internal notes..."></textarea>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Exclusions</label>
+              <textarea class="form-textarea" id="f-excl" placeholder="What's NOT included..."></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="goTo('estimates')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="createEstimate()">Create Estimate</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTIMATE DETAIL -->
+      <div id="page-detail" class="page">
+        <div class="back-link" onclick="goTo('estimates')">← Back to Estimates</div>
+        <div class="header">
+          <div>
+            <div class="detail-title" id="d-title">Estimate Name</div>
+            <div class="detail-meta">
+              <span>📍 <span id="d-loc">Location</span></span>
+              <span>📅 Due: <span id="d-due">-</span></span>
+              <span id="d-status"></span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="openEditModal()">✏️ Edit</button>
+            <button class="btn btn-secondary" onclick="exportEstimate()">📤 Export</button>
+            <button class="btn btn-primary" onclick="openLineModal()">+ Add Line Item</button>
+          </div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h3>Line Items <span style="font-weight:400;color:var(--text-secondary);font-size:13px;" id="d-count">0 items</span></h3>
+            <table style="width:100%">
+              <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+              <tbody id="lineTable"></tbody>
+            </table>
+          </div>
+          <div>
+            <div class="detail-card summary-card" style="margin-bottom:16px;">
+              <h3>Summary</h3>
+              <div class="summary-row"><span>Subtotal</span><span class="amount" id="d-sub">$0</span></div>
+              <div class="summary-row total"><span>Total</span><span class="amount" id="d-total">$0</span></div>
+            </div>
+            <div class="detail-card">
+              <h3>Details</h3>
+              <div class="info-grid">
+                <div class="info-item"><div class="info-label">Customer</div><div class="info-value" id="d-cust">-</div></div>
+                <div class="info-item"><div class="info-label">QB #</div><div class="info-value" id="d-qb">-</div></div>
+              </div>
+              <div class="info-item" style="margin-top:12px;"><div class="info-label">Memo</div><div class="info-value" id="d-memo">-</div></div>
+              <div class="info-item" style="margin-top:12px;"><div class="info-label">Exclusions</div><div class="info-value" id="d-excl">-</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUSTOMERS -->
+      <div id="page-customers" class="page">
+        <div class="header">
+          <div><h1>Customers</h1><p>Manage your customers</p></div>
+          <div class="header-actions">
+            <button class="btn btn-primary" onclick="openCustModal()">+ Add Customer</button>
+          </div>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Customer</th><th>Type</th><th>Phone</th><th>Email</th></tr></thead>
+            <tbody id="custTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PHASES -->
+      <div id="page-phases" class="page">
+        <div class="header">
+          <div><h1>Phases</h1><p>Standard construction phases</p></div>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Phase</th><th>Sort Order</th><th>Description</th></tr></thead>
+            <tbody id="phaseTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Line Item Modal -->
+  <div class="modal-overlay" id="lineModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Add Line Item</div>
+        <button class="modal-close" onclick="closeLineModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phase</label>
+        <select class="form-select" id="l-phase"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Item Name <span class="required">*</span></label>
+        <input type="text" class="form-input" id="l-name" placeholder="e.g., Wall Rough">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="l-desc" placeholder="Describe the work..."></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="form-group"><label class="form-label">Qty</label><input type="number" class="form-input" id="l-qty" value="1" oninput="calcAmount()"></div>
+        <div class="form-group"><label class="form-label">Rate</label><input type="number" class="form-input" id="l-rate" step="0.01" oninput="calcAmount()"></div>
+        <div class="form-group"><label class="form-label">Amount <span class="required">*</span></label><input type="number" class="form-input" id="l-amt" step="0.01"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeLineModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="addLine()">Add Line Item</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Modal -->
+  <div class="modal-overlay" id="custModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Add Customer</div>
+        <button class="modal-close" onclick="closeCustModal()">✕</button>
+      </div>
+      <div class="form-group"><label class="form-label">Name <span class="required">*</span></label><input type="text" class="form-input" id="c-name"></div>
+      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="c-type"><option>GC</option><option>Owner</option><option>Developer</option><option>Other</option></select></div>
+      <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="c-phone"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="c-email"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeCustModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="addCustomer()">Add Customer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal" style="max-width:550px;">
+      <div class="modal-header">
+        <div class="modal-title">Edit Estimate</div>
+        <button class="modal-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label class="form-label">Estimate Name <span class="required">*</span></label><input type="text" class="form-input" id="e-name"></div>
+        <div class="form-group"><label class="form-label">Customer</label><select class="form-select" id="e-customer"></select></div>
+        <div class="form-group"><label class="form-label">Location</label><input type="text" class="form-input" id="e-location"></div>
+        <div class="form-group"><label class="form-label">Bid Due Date</label><input type="date" class="form-input" id="e-due"></div>
+        <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="e-status"><option value="Draft">Draft</option><option value="Submitted">Submitted</option><option value="Won">Won</option><option value="Lost">Lost</option></select></div>
+        <div class="form-group"><label class="form-label">QB Estimate #</label><input type="text" class="form-input" id="e-qb"></div>
+        <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Memo</label><textarea class="form-textarea" id="e-memo"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Exclusions</label><textarea class="form-textarea" id="e-excl"></textarea></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveEstimate()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"><span class="toast-icon">✓</span><span id="toastMsg">Success!</span></div>
+
+  <script>
+    // ============ CONFIGURATION ============
+    const msalConfig = {
+      auth: {
+        clientId: 'c028eb75-5f9d-41fe-bb27-d346eff5e199',
+        authority: 'https://login.microsoftonline.com/2b806475-77ad-4362-b1c0-52db81987a46',
+        redirectUri: window.location.origin
+      },
+      cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+    };
+
+    const dataverseUrl = 'https://org12179381.crm.dynamics.com';
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+    // ============ DATA ============
+    let phases = [];
+    let customers = [];
+    let estimates = [];
+    let lines = [];
+    let currentEst = null;
+    let accessToken = null;
+
+    // ============ AUTH ============
+    async function signIn() {
+      try {
+        const loginResponse = await msalInstance.loginPopup({
+          scopes: [`${dataverseUrl}/.default`]
+        });
+        await handleLogin(loginResponse.account);
+      } catch (error) {
+        console.error('Login error:', error);
+        document.getElementById('loginError').textContent = 'Login failed: ' + error.message;
+      }
+    }
+
+    async function handleLogin(account) {
+      if (!account) return;
+      
+      document.getElementById('userName').textContent = account.name || 'User';
+      document.getElementById('userEmail').textContent = account.username || '';
+      
+      try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: [`${dataverseUrl}/.default`],
+          account: account
+        });
+        accessToken = tokenResponse.accessToken;
+        
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').classList.add('active');
+        
+        await loadAllData();
+      } catch (error) {
+        console.error('Token error:', error);
+        if (error instanceof msal.InteractionRequiredAuthError) {
+          const tokenResponse = await msalInstance.acquireTokenPopup({
+            scopes: [`${dataverseUrl}/.default`]
+          });
+          accessToken = tokenResponse.accessToken;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('appContainer').classList.add('active');
+          await loadAllData();
+        }
+      }
+    }
+
+    function signOut() {
+      msalInstance.logoutPopup();
+      document.getElementById('appContainer').classList.remove('active');
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    // Check for existing session
+    msalInstance.initialize().then(() => {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        handleLogin(accounts[0]);
+      }
+    });
+
+    // ============ API ============
+    async function apiGet(entity, select, filter, expand) {
+      let url = `${dataverseUrl}/api/data/v9.2/${entity}`;
+      let params = [];
+      if (select) params.push(`$select=${select}`);
+      if (filter) params.push(`$filter=${filter}`);
+      if (expand) params.push(`$expand=${expand}`);
+      if (params.length) url += '?' + params.join('&');
+      
+      const resp = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        }
+      });
+      if (!resp.ok) throw new Error('API Error: ' + resp.status);
+      const data = await resp.json();
+      return data.value || [];
+    }
+
+    async function apiPost(entity, data) {
+      const resp = await fetch(`${dataverseUrl}/api/data/v9.2/${entity}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error('API Error: ' + err);
+      }
+      const location = resp.headers.get('OData-EntityId');
+      return location ? location.match(/\(([^)]+)\)/)?.[1] : null;
+    }
+
+    async function apiPatch(entity, id, data) {
+      const resp = await fetch(`${dataverseUrl}/api/data/v9.2/${entity}(${id})`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        },
+        body: JSON.stringify(data)
+      });
+      return resp.ok;
+    }
+
+    async function apiDelete(entity, id) {
+      const resp = await fetch(`${dataverseUrl}/api/data/v9.2/${entity}(${id})`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        }
+      });
+      return resp.ok;
+    }
+
+    // ============ DATA LOADING ============
+    async function loadAllData() {
+      try {
+        await Promise.all([loadPhases(), loadCustomers(), loadEstimates()]);
+        renderDashboard();
+      } catch (error) {
+        console.error('Load error:', error);
+        toast('Error loading data. Please refresh.');
+      }
+    }
+
+    async function loadPhases() {
+      const data = await apiGet('cr673_nle2_phases', 'cr673_nle2_phaseid,cr673_nle2_name,cr673_nle2_sortorder,cr673_nle2_description');
+      phases = data.map(p => ({
+        id: p.cr673_nle2_phaseid,
+        name: p.cr673_nle2_name || '',
+        order: p.cr673_nle2_sortorder || 0,
+        desc: p.cr673_nle2_description || ''
+      }));
+    }
+
+    async function loadCustomers() {
+      const data = await apiGet('cr673_nle2_customers', 'cr673_nle2_customerid,cr673_nle2_customer,cr673_nle2_customertype,cr673_nle2_phone,cr673_nle2_email');
+      customers = data.map(c => ({
+        id: c.cr673_nle2_customerid,
+        name: c.cr673_nle2_customer || '',
+        type: c.cr673_nle2_customertype || 'Other',
+        phone: c.cr673_nle2_phone || '',
+        email: c.cr673_nle2_email || ''
+      }));
+    }
+
+    async function loadEstimates() {
+      const data = await apiGet('cr673_nle2_estimates', 'cr673_nle2_estimateid,cr673_nle2_estimatename,cr673_nle2_bidduedate,cr673_nle2_status,cr673_nle2_qbestimateno,cr673_nle2_memo,cr673_nle2_exclusions,cr673_nle2_projectlocation,cr673_nle2_estimatetotal,_cr673_nle2_customer_value');
+      estimates = data.map(e => ({
+        id: e.cr673_nle2_estimateid,
+        name: e.cr673_nle2_estimatename || '',
+        due: e.cr673_nle2_bidduedate || '',
+        status: e.cr673_nle2_status || 'Draft',
+        qb: e.cr673_nle2_qbestimateno || '',
+        memo: e.cr673_nle2_memo || '',
+        excl: e.cr673_nle2_exclusions || '',
+        loc: e.cr673_nle2_projectlocation || '',
+        total: e.cr673_nle2_estimatetotal || 0,
+        custId: e._cr673_nle2_customer_value || null
+      }));
+      document.getElementById('estCount').textContent = estimates.length;
+    }
+
+    async function loadLines(estId) {
+      const filter = `_cr673_nle2_estimate_value eq ${estId}`;
+      const data = await apiGet('cr673_nle2_estimatelineitems', 'cr673_nle2_estimatelineitemid,cr673_nle2_name,cr673_nle2_description,cr673_nle2_quantity,cr673_nle2_rate,cr673_nle2_amount,_cr673_nle2_phase_value', filter);
+      lines = data.map(l => ({
+        id: l.cr673_nle2_estimatelineitemid,
+        phaseId: l._cr673_nle2_phase_value,
+        name: l.cr673_nle2_name || '',
+        desc: l.cr673_nle2_description || '',
+        qty: l.cr673_nle2_quantity || 1,
+        rate: l.cr673_nle2_rate || 0,
+        amt: l.cr673_nle2_amount || 0
+      }));
+    }
+
+    // ============ NAVIGATION ============
+    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+      el.addEventListener('click', () => goTo(el.dataset.page));
+    });
+
+    function goTo(page) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + page)?.classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+      
+      if (page === 'dashboard') renderDashboard();
+      if (page === 'estimates') renderEstimates();
+      if (page === 'customers') renderCustomers();
+      if (page === 'phases') renderPhases();
+      if (page === 'new-estimate') populateCustSelect();
+    }
+
+    // ============ RENDER ============
+    function renderDashboard() {
+      const search = document.getElementById('dashSearch')?.value.toLowerCase() || '';
+      const pipeline = estimates.filter(e => e.status !== 'Lost').reduce((s, e) => s + (e.total || 0), 0);
+      const won = estimates.filter(e => e.status === 'Won').reduce((s, e) => s + (e.total || 0), 0);
+      const pending = estimates.filter(e => e.status === 'Draft' || e.status === 'Submitted').reduce((s, e) => s + (e.total || 0), 0);
+      const rate = estimates.length ? Math.round(estimates.filter(e => e.status === 'Won').length / estimates.length * 100) : 0;
+      
+      document.getElementById('s-pipeline').textContent = fmt(pipeline);
+      document.getElementById('s-won').textContent = fmt(won);
+      document.getElementById('s-pending').textContent = fmt(pending);
+      document.getElementById('s-rate').textContent = rate + '%';
+      
+      const filtered = estimates.filter(e => e.name.toLowerCase().includes(search) || (e.loc || '').toLowerCase().includes(search)).slice(0, 5);
+      document.getElementById('dashTable').innerHTML = estRows(filtered);
+    }
+
+    function renderEstimates() {
+      const search = document.getElementById('estSearch')?.value.toLowerCase() || '';
+      const status = document.getElementById('statusFilter')?.value || '';
+      const filtered = estimates.filter(e => {
+        const matchSearch = e.name.toLowerCase().includes(search) || (e.loc || '').toLowerCase().includes(search);
+        const matchStatus = !status || e.status === status;
+        return matchSearch && matchStatus;
+      });
+      document.getElementById('estTable').innerHTML = estRows(filtered);
+    }
+
+    function estRows(ests) {
+      if (!ests.length) return '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">No estimates found</td></tr>';
+      return ests.map(e => {
+        const c = customers.find(x => x.id === e.custId) || { name: 'Unknown' };
+        const init = c.name.split(' ').map(w => w[0]).join('').substring(0, 2);
+        return `<tr onclick="viewEst('${e.id}')">
+          <td><div class="est-name">${e.name}</div><div class="est-loc">${e.loc || '-'}</div></td>
+          <td><div class="customer-cell"><div class="avatar">${init}</div>${c.name}</div></td>
+          <td><span class="status ${(e.status || 'draft').toLowerCase()}"><span class="status-dot"></span>${e.status || 'Draft'}</span></td>
+          <td class="amount">${fmt(e.total || 0)}</td>
+          <td>${e.due ? fmtDate(e.due) : '-'}</td>
+          <td onclick="event.stopPropagation()"><button class="action-btn" onclick="viewEst('${e.id}')">👁</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderCustomers() {
+      document.getElementById('custTable').innerHTML = customers.length ? customers.map(c => {
+        const init = c.name.split(' ').map(w => w[0]).join('').substring(0, 2);
+        return `<tr><td><div class="customer-cell"><div class="avatar">${init}</div>${c.name}</div></td><td><span class="status ${c.type === 'GC' ? 'submitted' : 'draft'}">${c.type}</span></td><td>${c.phone || '-'}</td><td>${c.email || '-'}</td></tr>`;
+      }).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;">No customers yet</td></tr>';
+    }
+
+    function renderPhases() {
+      document.getElementById('phaseTable').innerHTML = phases.length ? phases.sort((a, b) => a.order - b.order).map(p => 
+        `<tr><td><strong>${p.name}</strong></td><td>${p.order}</td><td>${p.desc}</td></tr>`
+      ).join('') : '<tr><td colspan="3" style="text-align:center;padding:30px;">No phases yet</td></tr>';
+    }
+
+    // ============ ESTIMATE DETAIL ============
+    async function viewEst(id) {
+      currentEst = id;
+      const e = estimates.find(x => x.id === id);
+      if (!e) return;
+      
+      const c = customers.find(x => x.id === e.custId) || { name: '-' };
+      
+      document.getElementById('d-title').textContent = e.name;
+      document.getElementById('d-loc').textContent = e.loc || 'No location';
+      document.getElementById('d-due').textContent = e.due ? fmtDate(e.due) : 'Not set';
+      document.getElementById('d-status').innerHTML = `<span class="status ${(e.status || 'draft').toLowerCase()}"><span class="status-dot"></span>${e.status || 'Draft'}</span>`;
+      document.getElementById('d-cust').textContent = c.name;
+      document.getElementById('d-qb').textContent = e.qb || '-';
+      document.getElementById('d-memo').textContent = e.memo || '-';
+      document.getElementById('d-excl').textContent = e.excl || '-';
+      
+      document.getElementById('lineTable').innerHTML = '<tr><td colspan="6" class="loading"><div class="spinner"></div>Loading...</td></tr>';
+      goTo('detail');
+      
+      await loadLines(id);
+      
+      document.getElementById('d-count').textContent = lines.length + ' items';
+      const total = lines.reduce((s, l) => s + (l.amt || 0), 0);
+      document.getElementById('d-sub').textContent = fmt(total);
+      document.getElementById('d-total').textContent = fmt(total);
+      
+      document.getElementById('lineTable').innerHTML = lines.length ? lines.map(l => 
+        `<tr><td><strong>⚡ ${l.name}</strong></td><td style="color:#64748b">${l.desc || '-'}</td><td style="text-align:right">${l.qty}</td><td style="text-align:right">${l.rate ? fmt(l.rate) : '-'}</td><td style="text-align:right" class="amount">${fmt(l.amt)}</td><td><button class="action-btn" onclick="delLine('${l.id}')">🗑</button></td></tr>`
+      ).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">No line items yet</td></tr>';
+      
+      populatePhaseSelect();
+    }
+
+    // ============ CREATE / EDIT ============
+    function populateCustSelect() {
+      const opts = '<option value="">Select customer...</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('f-customer').innerHTML = opts;
+    }
+
+    async function createEstimate() {
+      const name = document.getElementById('f-name').value;
+      const cust = document.getElementById('f-customer').value;
+      if (!name) { alert('Please enter an estimate name'); return; }
+      if (!cust) { alert('Please select a customer'); return; }
+      
+      const data = {
+        cr673_nle2_estimatename: name,
+        'cr673_nle2_Customer@odata.bind': `/cr673_nle2_customers(${cust})`,
+        cr673_nle2_projectlocation: document.getElementById('f-location').value || null,
+        cr673_nle2_bidduedate: document.getElementById('f-due').value || null,
+        cr673_nle2_status: document.getElementById('f-status').value || 'Draft',
+        cr673_nle2_qbestimateno: document.getElementById('f-qb').value || null,
+        cr673_nle2_memo: document.getElementById('f-memo').value || null,
+        cr673_nle2_exclusions: document.getElementById('f-excl').value || null,
+        cr673_nle2_estimatetotal: 0
+      };
+      
+      try {
+        const newId = await apiPost('cr673_nle2_estimates', data);
+        await loadEstimates();
+        toast('Estimate created!');
+        if (newId) viewEst(newId);
+        else goTo('estimates');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // ============ LINE ITEMS ============
+    function populatePhaseSelect() {
+      document.getElementById('l-phase').innerHTML = '<option value="">Select phase...</option>' + phases.sort((a, b) => a.order - b.order).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    }
+    function openLineModal() { document.getElementById('lineModal').classList.add('active'); document.getElementById('l-name').value = ''; document.getElementById('l-desc').value = ''; document.getElementById('l-qty').value = '1'; document.getElementById('l-rate').value = ''; document.getElementById('l-amt').value = ''; }
+    function closeLineModal() { document.getElementById('lineModal').classList.remove('active'); }
+    function calcAmount() { const q = parseFloat(document.getElementById('l-qty').value) || 0; const r = parseFloat(document.getElementById('l-rate').value) || 0; if (q > 0 && r > 0) document.getElementById('l-amt').value = (q * r).toFixed(2); }
+
+    async function addLine() {
+      const name = document.getElementById('l-name').value;
+      const amt = document.getElementById('l-amt').value;
+      if (!name) { alert('Please enter an item name'); return; }
+      if (!amt) { alert('Please enter an amount'); return; }
+      
+      const phaseId = document.getElementById('l-phase').value;
+      const data = {
+        cr673_nle2_name: name,
+        'cr673_nle2_Estimate@odata.bind': `/cr673_nle2_estimates(${currentEst})`,
+        cr673_nle2_description: document.getElementById('l-desc').value || null,
+        cr673_nle2_quantity: parseInt(document.getElementById('l-qty').value) || 1,
+        cr673_nle2_rate: parseFloat(document.getElementById('l-rate').value) || 0,
+        cr673_nle2_amount: parseFloat(amt)
+      };
+      if (phaseId) data['cr673_nle2_Phase@odata.bind'] = `/cr673_nle2_phases(${phaseId})`;
+      
+      try {
+        await apiPost('cr673_nle2_estimatelineitems', data);
+        await updateEstTotal();
+        closeLineModal();
+        toast('Line item added!');
+        viewEst(currentEst);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function delLine(id) {
+      if (!confirm('Delete this line item?')) return;
+      try {
+        await apiDelete('cr673_nle2_estimatelineitems', id);
+        await updateEstTotal();
+        toast('Deleted');
+        viewEst(currentEst);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function updateEstTotal() {
+      await loadLines(currentEst);
+      const total = lines.reduce((s, l) => s + (l.amt || 0), 0);
+      await apiPatch('cr673_nle2_estimates', currentEst, { cr673_nle2_estimatetotal: total });
+      await loadEstimates();
+    }
+
+    // ============ EDIT ESTIMATE ============
+    function openEditModal() {
+      const e = estimates.find(x => x.id === currentEst);
+      if (!e) return;
+      document.getElementById('e-customer').innerHTML = '<option value="">Select...</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('e-name').value = e.name;
+      document.getElementById('e-customer').value = e.custId || '';
+      document.getElementById('e-location').value = e.loc || '';
+      document.getElementById('e-due').value = e.due || '';
+      document.getElementById('e-status').value = e.status || 'Draft';
+      document.getElementById('e-qb').value = e.qb || '';
+      document.getElementById('e-memo').value = e.memo || '';
+      document.getElementById('e-excl').value = e.excl || '';
+      document.getElementById('editModal').classList.add('active');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+
+    async function saveEstimate() {
+      const name = document.getElementById('e-name').value;
+      if (!name) { alert('Please enter an estimate name'); return; }
+      
+      const cust = document.getElementById('e-customer').value;
+      const data = {
+        cr673_nle2_estimatename: name,
+        cr673_nle2_projectlocation: document.getElementById('e-location').value || null,
+        cr673_nle2_bidduedate: document.getElementById('e-due').value || null,
+        cr673_nle2_status: document.getElementById('e-status').value || 'Draft',
+        cr673_nle2_qbestimateno: document.getElementById('e-qb').value || null,
+        cr673_nle2_memo: document.getElementById('e-memo').value || null,
+        cr673_nle2_exclusions: document.getElementById('e-excl').value || null
+      };
+      if (cust) data['cr673_nle2_Customer@odata.bind'] = `/cr673_nle2_customers(${cust})`;
+      
+      try {
+        await apiPatch('cr673_nle2_estimates', currentEst, data);
+        await loadEstimates();
+        closeEditModal();
+        toast('Estimate updated!');
+        viewEst(currentEst);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // ============ CUSTOMERS ============
+    function openCustModal() { document.getElementById('custModal').classList.add('active'); document.getElementById('c-name').value = ''; document.getElementById('c-type').value = 'GC'; document.getElementById('c-phone').value = ''; document.getElementById('c-email').value = ''; }
+    function closeCustModal() { document.getElementById('custModal').classList.remove('active'); }
+
+    async function addCustomer() {
+      const name = document.getElementById('c-name').value;
+      if (!name) { alert('Please enter a customer name'); return; }
+      
+      try {
+        await apiPost('cr673_nle2_customers', {
+          cr673_nle2_customer: name,
+          cr673_nle2_customertype: document.getElementById('c-type').value || 'Other',
+          cr673_nle2_phone: document.getElementById('c-phone').value || null,
+          cr673_nle2_email: document.getElementById('c-email').value || null
+        });
+        await loadCustomers();
+        closeCustModal();
+        toast('Customer added!');
+        renderCustomers();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // ============ EXPORT ============
+    function exportEstimate() {
+      const e = estimates.find(x => x.id === currentEst);
+      if (!e) return;
+      const c = customers.find(x => x.id === e.custId) || { name: 'NLE' };
+      if (!lines.length) { alert('No line items to export'); return; }
+      
+      let csv = 'Estimate No,Customer,Estimate Date,Memo,Product/Service,Description,Qty,Rate,Amount\n';
+      lines.forEach(l => {
+        csv += `"${e.qb || e.id}","${c.name}","${e.due || ''}","${e.name} - ${e.loc || ''}","${l.name}","${l.desc || ''}",${l.qty},${l.rate},${l.amt}\n`;
+      });
+      download(csv, `Estimate_${e.name.replace(/[^a-z0-9]/gi, '_')}.csv`);
+      toast('Exported!');
+    }
+
+    function exportAll() {
+      let csv = 'Estimate,Customer,Status,Location,Due,Amount\n';
+      estimates.forEach(e => {
+        const c = customers.find(x => x.id === e.custId) || { name: '' };
+        csv += `"${e.name}","${c.name}","${e.status}","${e.loc || ''}","${e.due || ''}",${e.total}\n`;
+      });
+      download(csv, 'All_Estimates.csv');
+      toast('Exported!');
+    }
+
+    function download(content, filename) {
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(content);
+      a.download = filename;
+      a.click();
+    }
+
+    // ============ UTILS ============
+    function fmt(n) { return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+    function fmtDate(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    function toast(msg) { document.getElementById('toastMsg').textContent = msg; document.getElementById('toast').classList.add('active'); setTimeout(() => document.getElementById('toast').classList.remove('active'), 3000); }
+  </script>
+</body>
+</html>
